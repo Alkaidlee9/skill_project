@@ -154,7 +154,7 @@ async function fetchFromCoinCap(config) {
   }));
 }
 
-async function fetch(config) {
+async function fetchProjects(config) {
   const projects = [];
   const failedSources = [];
   const successSources = [];
@@ -164,10 +164,14 @@ async function fetch(config) {
     try {
       const cmcProjects = await fetchFromCMC(config.cmc);
       projects.push(...cmcProjects);
-      console.log(`✅ CMC: ${cmcProjects.length} 个项目`);
-      successSources.push('cmc');
+      if (cmcProjects.length > 0) {
+        console.log(`✅ CMC: ${cmcProjects.length} 个项目`);
+        successSources.push('cmc');
+      } else {
+        console.warn('⚠️  CMC: 未配置 API Key 或返回空数据');
+      }
     } catch (err) {
-      console.warn(`⚠️  CMC 数据源失败：${err.message} - 已跳过，继续其他数据源`);
+      console.warn(`⚠️  CMC 数据源失败：${err.message }`);
       failedSources.push({ source: 'cmc', error: err.message });
     }
   }
@@ -177,10 +181,14 @@ async function fetch(config) {
     try {
       const cgProjects = await fetchFromCoinGecko(config.coingecko);
       projects.push(...cgProjects);
-      console.log(`✅ CoinGecko: ${cgProjects.length} 个项目`);
-      successSources.push('coingecko');
+      if (cgProjects.length > 0) {
+        console.log(`✅ CoinGecko: ${cgProjects.length} 个项目`);
+        successSources.push('coingecko');
+      } else {
+        console.warn('⚠️  CoinGecko: 未配置 API Key 或返回空数据');
+      }
     } catch (err) {
-      console.warn(`⚠️  CoinGecko 数据源失败：${err.message} - 已跳过，继续其他数据源`);
+      console.warn(`⚠️  CoinGecko 数据源失败：${err.message } - 已跳过，继续其他数据源`);
       failedSources.push({ source: 'coingecko', error: err.message });
     }
   }
@@ -190,10 +198,14 @@ async function fetch(config) {
     try {
       const binanceProjects = await fetchFromBinance(config.binance);
       projects.push(...binanceProjects);
-      console.log(`✅ Binance API: ${binanceProjects.length} 个项目`);
-      successSources.push('binance');
+      if (binanceProjects.length > 0) {
+        console.log(`✅ Binance API: ${binanceProjects.length} 个项目`);
+        successSources.push('binance');
+      } else {
+        console.warn('⚠️  Binance API: 未配置 API Key 或返回空数据');
+      }
     } catch (err) {
-      console.warn(`⚠️  Binance API 数据源失败：${err.message} - 已跳过，继续其他数据源`);
+      console.warn(`⚠️  Binance API 数据源失败：${err.message } - 已跳过，继续其他数据源`);
       failedSources.push({ source: 'binance', error: err.message });
     }
   }
@@ -203,10 +215,14 @@ async function fetch(config) {
     try {
       const coincapProjects = await fetchFromCoinCap(config.coincap);
       projects.push(...coincapProjects);
-      console.log(`✅ CoinCap: ${coincapProjects.length} 个项目`);
-      successSources.push('coincap');
+      if (coincapProjects.length > 0) {
+        console.log(`✅ CoinCap: ${coincapProjects.length} 个项目`);
+        successSources.push('coincap');
+      } else {
+        console.warn('⚠️  CoinCap: 返回空数据或网络错误');
+      }
     } catch (err) {
-      console.warn(`⚠️  CoinCap 数据源失败：${err.message} - 已跳过，继续其他数据源`);
+      console.warn(`⚠️  CoinCap 数据源失败：${err.message } - 已跳过，继续其他数据源`);
       failedSources.push({ source: 'coincap', error: err.message });
     }
   }
@@ -296,7 +312,7 @@ async function main() {
   console.log('🚀 Channel BD - 获取项目池\n');
 
   const startTime = Date.now();
-  const projects = await fetch(config.data_sources);
+  const projects = await fetchProjects(config.data_sources);
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`\n✨ 共获取 ${projects.length} 个项目 (耗时：${duration}s)`);
 
