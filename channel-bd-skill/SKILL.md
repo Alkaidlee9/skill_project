@@ -52,6 +52,8 @@ Channel BD 是一个自动化的加密货币项目挖掘、筛选、资料收集
 
 ## 使用方式
 
+### CLI 命令
+
 ```bash
 # 初始化配置（首次使用）
 channel-bd init
@@ -59,14 +61,31 @@ channel-bd init
 # 运行完整流程
 channel-bd run --config ./config/channel-bd.json
 
-# 仅执行筛选（不发送）
+# 分步执行
+channel-bd fetch --config ./config/channel-bd.json   # 获取项目池
+channel-bd filter --config ./config/channel-bd.json  # 筛选评分
+channel-bd scrape --config ./config/channel-bd.json  # 资料补全
+channel-bd extract --config ./config/channel-bd.json # 联系方式抽取
+channel-bd export --config ./config/channel-bd.json  # 导出表单
+channel-bd send --bucket A --config ./config/channel-bd.json  # 发送邮件
+
+# 仅执行特定阶段
 channel-bd run --stage filter --config ./config/channel-bd.json
 
-# 仅发送邮件（使用已有表单）
-channel-bd send --sheet <sheet_id> --bucket A
-
-# 查看发送日志
+# 查看日志
 channel-bd logs --since 24h
+
+# 清理缓存
+channel-bd clean
+```
+
+### 直接运行脚本
+
+```bash
+node scripts/run.js --config ./config/channel-bd.json
+node scripts/fetch.js --config ./config/channel-bd.json
+node scripts/filter.js --config ./config/channel-bd.json
+# ...
 ```
 
 ## 配置示例

@@ -1,8 +1,16 @@
-# Suppression List - Email addresses and domains to exclude
-# One entry per line
-# Format: email@domain.com or @domain.com for domain-wide suppression
+# 抑制名单 - 不再联系的邮箱和域名
+# 每行一个条目
+# 格式：email@domain.com 或 @domain.com (屏蔽整个域名)
 
-# Example:
+# 退订用户
 # unsubscribe@example.com
-# @spam-domain.com
+
+# 竞争对手域名
+# @competitor-domain.com
+
+# 已 bounce 的邮箱
 # bounced@example.org
+
+# 已联系过的邮箱（避免重复）
+# already-contacted@project.io
+

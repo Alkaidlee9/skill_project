@@ -7,86 +7,120 @@ Channel BD 是一个自动化的加密货币项目挖掘、筛选、资料收集
 ### 1. 初始化配置
 
 ```bash
-# 复制配置模板
-cp config/channel-bd.example.json config/channel-bd.json
-cp config/.env.example config/.env
+cd channel-bd-skill
+node scripts/init.js
+```
 
-# 编辑环境变量填入你的 API 密钥
+### 2. 配置环境变量
+
+```bash
+cp config/.env.example config/.env
 vim config/.env
 ```
 
-### 2. 配置必填项
+必填 API Keys：
+- CMC: https://coinmarketcap.com/api/
+- CoinGecko: https://www.coingecko.com/api
+- Binance: https://www.binance.com/en/my/settings/api-management
 
-**编辑 `config/.env`**:
+### 3. 配置筛选条件
+
 ```bash
-# 数据源 API（建议全部配置以启用交叉验证）
-export CMC_API_KEY="your_cmc_key"
-export COINGECKO_API_KEY="your_coingecko_key"
-export BINANCE_API_KEY="your_binance_key"
+cp config/channel-bd.example.json config/channel-bd.json
+vim config/channel-bd.json
 ```
 
-**编辑 `config/channel-bd.json`**:
+推荐首次配置：
 ```json
 {
   "hard_filters": {
-    "min_market_cap": 1000000,    // 最小市值 100 万 USD
-    "max_market_cap": 100000000,  // 最大市值 1 亿 USD
+    "min_market_cap": 1000000,
+    "max_market_cap": 100000000,
     "excluded_tags": ["meme", "nft"],
     "has_website": true,
     "has_twitter": true
   },
-  "bucket_thresholds": {
-    "A": 80,   // ≥80 分自动发送
-    "B": 50,   // 50-79 分草稿
-    "C": 0     // <50 分暂缓
+  "email": {
+    "dry_run": true
   }
 }
 ```
 
-### 3. 运行流程
+### 4. 运行完整流程
 
 ```bash
-# 方式 1: 完整流程（筛选→抓取→导出→发送）
 node scripts/run.js --config ./config/channel-bd.json
-
-# 方式 2: 分步执行
-node scripts/fetch.js --config ./config/channel-bd.json   # 获取项目池
-node scripts/filter.js --config ./config/channel-bd.json  # 筛选评分
-node scripts/scrape.js --config ./config/channel-bd.json  # 抓取资料
-node scripts/extract.js --config ./config/channel-bd.json # 抽取联系方式
-node scripts/export.js --config ./config/channel-bd.json  # 导出表单
-node scripts/send.js --bucket A --config ./config/channel-bd.json  # 发送邮件
-
-# 方式 3: 仅筛选（不发送，用于测试）
-node scripts/run.js --stage filter --config ./config/channel-bd.json
 ```
 
-### 4. 查看结果
+### 5. 查看结果
 
 ```bash
-# 查看分桶统计
 cat cache/buckets.json | jq '. | keys[] as $k | "\($k): \(.[$k] | length)"'
-
-# 查看筛选后项目
-cat cache/filtered.json | jq '.[0:3]'
-
-# 查看被拒绝原因
-cat cache/rejected.json | jq '.[0].reject_reasons'
 ```
+
+## 文档导航
+
+- 📘 **[SKILL.md](./SKILL.md)** - 完整技能文档（技术规范）
+- 📗 **[GUIDE.md](./GUIDE.md)** - 详细使用指南（工作流示例）
+- 📙 **[QUICKREF.md](./QUICKREF.md)** - 快速参考卡（命令速查）
+- 📕 **[config/README.md](./config/README.md)** - 配置说明
 
 ## 核心功能
 
-| Step | 功能 | 输入 | 输出 |
+| Step | 功能 | 脚本 | 输出 |
 |------|------|------|------|
-| 0 | 输入规范化 | 用户需求 | 结构化配置 |
-| 1 | 项目池获取 | CMC/CoinGecko/Binance/CoinCap API | projects.json |
-| 2 | 筛选评分分桶 | projects.json | filtered.json, buckets.json |
-| 3 | 资料补全 | filtered.json | scraped.json |
-| 4 | 联系方式抽取 | scraped.json | contacts.json |
-| 5 | 置信度评分 | contacts.json | contacts_scored.json |
-| 6 | 输出表单 | contacts_scored.json | Google Sheets/Airtable |
-| 7 | 邮件生成 | 表单数据 | 邮件草稿 |
-| 8 | 批量发送 | 邮件草稿 | 发送日志 |
+| 1 | 项目池获取 | fetch.js | projects.json |
+| 2 | 筛选评分分桶 | filter.js | filtered.json, buckets.json |
+| 3 | 资料补全 | scrape.js | scraped.json |
+| 4 | 联系方式抽取 | extract.js | contacts.json |
+| 5 | 导出表单 | export.js | projects.csv, contacts.csv |
+| 6 | 批量发送 | send.js | send_log.json |
+| - | 批量运行 | run.js | 完整流程 |
+| - | 查看日志 | logs.js | 日志摘要 |
+
+## 常用命令
+
+```bash
+# 完整流程
+node scripts/run.js --config ./config/channel-bd.json
+
+# 分步执行
+node scripts/fetch.js --config ./config/channel-bd.json
+node scripts/filter.js --config ./config/channel-bd.json
+node scripts/scrape.js --config ./config/channel-bd.json
+node scripts/extract.js --config ./config/channel-bd.json
+node scripts/export.js --config ./config/channel-bd.json
+node scripts/send.js --bucket A --config ./config/channel-bd.json
+
+# 查看日志
+node scripts/logs.js --since 24h
+
+# 清理缓存
+node scripts/clean.js
+```
+
+## 数据源与交叉验证
+
+| 数据源 | API Key | 优势 | 用途 |
+|--------|---------|------|------|
+| CMC | 必需 | 市值排名权威 | 主要数据源 |
+| CoinGecko | 必需 | 数据全面 | 交叉验证 |
+| Binance | 必需 | 交易数据实时 | 流动性验证 |
+| CoinCap | 无需 | 免费开放 | 补充数据 |
+
+**交叉验证优势**：
+- ✅ 自动合并多个数据源数据
+- ✅ 优先选择可靠来源
+- ✅ 填补缺失字段
+- ✅ 额外评分加成
+
+## 分桶逻辑
+
+| 桶 | 分数 | 处理方式 |
+|----|------|---------|
+| A | ≥80 | 自动发送，优先联系 |
+| B | 50-79 | 生成草稿，人工确认 |
+| C | <50 | 暂缓，放入观察池 |
 
 ## 数据源与交叉验证
 

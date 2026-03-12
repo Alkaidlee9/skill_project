@@ -1,0 +1,43 @@
+{
+  "name": "channel-bd",
+  "version": "1.0.0",
+  "description": "Channel BD - 加密货币项目渠道拓展自动化",
+  "main": "scripts/run.js",
+  "bin": {
+    "channel-bd": "./bin/channel-bd.js"
+  },
+  "scripts": {
+    "init": "node scripts/init.js",
+    "fetch": "node scripts/fetch.js --config ./config/channel-bd.json",
+    "filter": "node scripts/filter.js --config ./config/channel-bd.json",
+    "scrape": "node scripts/scrape.js --config ./config/channel-bd.json",
+    "extract": "node scripts/extract.js --config ./config/channel-bd.json",
+    "export": "node scripts/export.js --config ./config/channel-bd.json",
+    "send": "node scripts/send.js --bucket A --config ./config/channel-bd.json",
+    "run": "node scripts/run.js --config ./config/channel-bd.json",
+    "logs": "node scripts/logs.js --since 24h",
+    "clean": "rm -rf cache/* output/*",
+    "test": "echo \"No tests specified\""
+  },
+  "keywords": [
+    "crypto",
+    "bd",
+    "business-development",
+    "automation",
+    "cmc",
+    "coingecko",
+    "binance"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/channel-bd-skill.git"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=16.0.0",
+    "bun": ">=1.0.0"
+  }
+}
