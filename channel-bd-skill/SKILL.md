@@ -10,9 +10,10 @@ Channel BD 是一个自动化的加密货币项目挖掘、筛选、资料收集
 - **标准结构化**: 将口语化标准拆解为"硬条件 + 排序偏好"
 
 ### Step 1: 项目池获取
-- 从 CMC/CoinGecko API 获取项目列表
+- 从 CMC/CoinGecko/Binance/CoinCap API 获取项目列表
 - 输出：项目名、链接、市值、FDV、标签
 - 同名/多符号/假官网去重与校验
+- **多数据源交叉验证**: 自动合并多个数据源数据，优先选择可靠来源
 
 ### Step 2: 筛选 + 评分 + 分桶
 - **硬过滤**: 不满足条件直接丢弃
@@ -82,6 +83,15 @@ channel-bd logs --since 24h
     "coingecko": {
       "enabled": true,
       "api_key": "${COINGECKO_API_KEY}"
+    },
+    "binance": {
+      "enabled": true,
+      "api_key": "${BINANCE_API_KEY}",
+      "limit": 100
+    },
+    "coincap": {
+      "enabled": true,
+      "limit": 100
     }
   },
   "hard_filters": {
@@ -258,6 +268,8 @@ interface ContactConfidence {
 | partnerships | string | 合作方摘要 |
 | status | string | pending/reviewed/contacted |
 | evidence_links | string[] | 证据链接列表 |
+| data_sources | string[] | 数据源列表 |
+| cross_validated | boolean | 是否多数据源验证 |
 | created_at | timestamp | 创建时间 |
 | updated_at | timestamp | 更新时间 |
 
@@ -305,24 +317,21 @@ interface ContactConfidence {
 # 数据源 API
 export CMC_API_KEY="your_cmc_key"
 export COINGECKO_API_KEY="your_coingecko_key"
-
-# 输出配置
-export GOOGLE_SHEET_ID="your_sheet_id"
-export GOOGLE_SERVICE_ACCOUNT_KEY="./config/gsa.json"
-export AIRTABLE_BASE_ID="your_base_id"
-export AIRTABLE_API_KEY="your_airtable_key"
-
-# 邮件配置
-export SMTP_HOST="smtp.example.com"
-export SMTP_PORT=587
-export SMTP_USER="your_smtp_user"
-export SMTP_PASSWORD="your_smtp_password"
-export SMTP_FROM="partnerships@example.com"
+export BINANCE_API_KEY="your_binance_key"
 
 # 可选配置
 export CHANNEL_BD_LOG_LEVEL="info"
 export CHANNEL_BD_DRY_RUN="false"
 ```
+
+## 交叉验证逻辑
+
+系统自动对多数据源数据进行交叉验证：
+
+1. **数据可靠性优先级**: CMC/CoinGecko > CoinCap > Binance
+2. **数据合并**: 自动合并多个数据源的市值、交易量等信息
+3. **验证标记**: `cross_validated: true` 表示多数据源验证
+4. **评分加成**: 多数据源验证的项目获得额外分数
 
 ## 安全与合规
 

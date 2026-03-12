@@ -15,6 +15,15 @@
       "vs_currency": "usd",
       "order": "market_cap_desc",
       "per_page": 100
+    },
+    "binance": {
+      "enabled": true,
+      "api_key": "${BINANCE_API_KEY}",
+      "limit": 100
+    },
+    "coincap": {
+      "enabled": true,
+      "limit": 100
     }
   },
   "hard_filters": {
@@ -45,7 +54,9 @@
     "website_quality": 10,
     "documentation": 10,
     "community_engagement": 5,
-    "tokenomics": 5
+    "tokenomics": 5,
+    "data_validation": 10,
+    "multi_source_bonus": 15
   },
   "bucket_thresholds": {
     "A": 80,
@@ -108,7 +119,9 @@
     "file": "./logs/channel-bd.log",
     "level": "info",
     "rotation": "daily",
-    "retention_days": 30
+    "retention_days": 30,
+    "save_fetch_log": true,
+    "save_failed_sources": true
   },
   "cache": {
     "enabled": true,

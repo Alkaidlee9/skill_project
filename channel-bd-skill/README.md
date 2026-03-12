@@ -19,19 +19,10 @@ vim config/.env
 
 **编辑 `config/.env`**:
 ```bash
-# 数据源 API（至少配置一个）
+# 数据源 API（建议全部配置以启用交叉验证）
 export CMC_API_KEY="your_cmc_key"
 export COINGECKO_API_KEY="your_coingecko_key"
-
-# 输出配置（至少配置一个）
-export GOOGLE_SHEET_ID="your_sheet_id"
-export AIRTABLE_BASE_ID="your_base_id"
-
-# 邮件配置
-export SMTP_HOST="smtp.example.com"
-export SMTP_USER="your@email.com"
-export SMTP_PASSWORD="your_password"
-export SMTP_FROM="bd@yourcompany.com"
+export BINANCE_API_KEY="your_binance_key"
 ```
 
 **编辑 `config/channel-bd.json`**:
@@ -88,7 +79,7 @@ cat cache/rejected.json | jq '.[0].reject_reasons'
 | Step | 功能 | 输入 | 输出 |
 |------|------|------|------|
 | 0 | 输入规范化 | 用户需求 | 结构化配置 |
-| 1 | 项目池获取 | CMC/CoinGecko API | projects.json |
+| 1 | 项目池获取 | CMC/CoinGecko/Binance/CoinCap API | projects.json |
 | 2 | 筛选评分分桶 | projects.json | filtered.json, buckets.json |
 | 3 | 资料补全 | filtered.json | scraped.json |
 | 4 | 联系方式抽取 | scraped.json | contacts.json |
@@ -96,6 +87,40 @@ cat cache/rejected.json | jq '.[0].reject_reasons'
 | 6 | 输出表单 | contacts_scored.json | Google Sheets/Airtable |
 | 7 | 邮件生成 | 表单数据 | 邮件草稿 |
 | 8 | 批量发送 | 邮件草稿 | 发送日志 |
+
+## 数据源与交叉验证
+
+### 支持的数据源
+
+| 数据源 | API Key | 优势 | 用途 |
+|--------|---------|------|------|
+| **CMC** | 必需 | 市值排名权威、标签丰富 | 主要数据源 |
+| **CoinGecko** | 必需 | 数据全面、更新快 | 交叉验证 |
+| **Binance** | 必需 | 交易数据实时 | 流动性验证 |
+| **CoinCap** | 无需 | 免费开放、覆盖广 | 补充数据 |
+
+### 交叉验证逻辑
+
+系统自动对多数据源数据进行交叉验证：
+
+1. **数据可靠性优先级**: CMC/CoinGecko > CoinCap > Binance
+2. **数据合并**: 自动合并多个数据源的市值、交易量等信息
+3. **验证标记**: `cross_validated: true` 表示多数据源验证
+4. **评分加成**: 多数据源验证的项目获得额外分数
+
+```json
+// 输出示例
+{
+  "name": "Ethereum",
+  "symbol": "ETH",
+  "market_cap": 280000000000,
+  "cmc_rank": 2,
+  "cross_validated": true,
+  "data_sources": ["cmc", "coingecko", "binance", "coincap"],
+  "score": 95,
+  "bucket": "A"
+}
+```
 
 ## Prompt 规范
 
@@ -337,7 +362,9 @@ API 限流 - 每分钟请求数超限
   "website_quality": 10,      // 官网质量
   "documentation": 10,        // 文档完整性
   "community_engagement": 5,  // 社区互动
-  "tokenomics": 5             // 代币经济学
+  "tokenomics": 5,            // 代币经济学
+  "data_validation": 10,      // 数据验证分（交叉验证）
+  "multi_source_bonus": 15    // 多数据源加成
 }
 ```
 
@@ -395,6 +422,21 @@ export CHANNEL_BD_LOG_LEVEL="debug"
 export CHANNEL_BD_CONFIG_PATH="./config/channel-bd.json"
 ```
 
+## 日志配置
+
+```json
+{
+  "logs": {
+    "file": "./logs/channel-bd.log",
+    "level": "info",
+    "rotation": "daily",
+    "retention_days": 30,
+    "save_fetch_log": true,
+    "save_failed_sources": true
+  }
+}
+```
+
 ## 典型工作流
 
 ```bash
@@ -437,6 +479,8 @@ node scripts/send.js --bucket B --confirm --config ./config/channel-bd.json
 3. **频控设置**遵守邮件服务商限制
 4. **定期清理**缓存目录 `./cache`
 5. **退订请求**及时加入抑制名单
+6. **推荐配置**所有数据源以启用交叉验证功能
+7. **部分失败**不影响运行，查看 `cache/fetch_log.json` 了解详情
 
 ## 故障排除
 
@@ -445,7 +489,45 @@ node scripts/send.js --bucket B --confirm --config ./config/channel-bd.json
 | API 限流 | 请求过于频繁 | 降低 limit，增加缓存 |
 | 邮件发送失败 | 认证错误 | 检查 SMTP 凭证 |
 | 网页抓取失败 | 反爬机制 | 使用官方 API 或降低频率 |
-| 数据不一致 | 多数据源冲突 | 配置优先级，手动复核 |
+| 数据不一致 | 多数据源冲突 | 自动交叉验证，手动复核 |
+| 部分数据源失败 | API Key 无效/限流 | 自动跳过失败源，查看日志 |
+
+## 容错与日志
+
+### 数据源容错
+
+系统会自动处理部分数据源失效的情况：
+
+1. **独立执行**: 每个数据源独立 try-catch 包裹
+2. **失败跳过**: 失败数据源自动跳过，不影响其他源
+3. **错误日志**: 记录失败原因到 `cache/fetch_log.json`
+4. **全部失败**: 仅当所有数据源都失败时才报错
+
+```bash
+# 示例输出
+📊 从 CMC 获取项目...
+✅ CMC: 100 个项目
+
+📊 从 CoinGecko 获取项目...
+⚠️  CoinGecko 数据源失败：429 Too Many Requests - 已跳过
+
+📊 从 Binance API 获取项目...
+✅ Binance API: 20 个项目
+
+⚠️  共 1 个数据源失败:
+  - coingecko: 429 Too Many Requests
+✅ 成功数据源：cmc, binance
+```
+
+### 日志文件
+
+| 日志文件 | 说明 |
+|---------|------|
+| `cache/fetch_log.json` | 获取记录（时间戳、耗时、数据源） |
+| `cache/projects.json` | 原始项目数据 |
+| `cache/filtered.json` | 筛选后项目 |
+| `cache/rejected.json` | 被拒绝项目及原因 |
+| `logs/channel-bd.log` | 完整运行日志 |
 
 ## 目录结构
 

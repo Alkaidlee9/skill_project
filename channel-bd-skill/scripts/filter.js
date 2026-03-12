@@ -44,63 +44,66 @@ function calculateScore(project, weights) {
   let total = 0;
   let maxTotal = 0;
 
-  // 市值排名分 (归一化到 0-100)
   if (weights.market_cap_rank && project.cmc_rank) {
     scores.market_cap_rank = Math.max(0, 100 - project.cmc_rank);
     total += scores.market_cap_rank * (weights.market_cap_rank / 100);
     maxTotal += weights.market_cap_rank;
   }
 
-  // 社交媒体分 (简化：假设有网站/twitter)
+  if (project.cross_validated) {
+    scores.data_validation = 100;
+    total += scores.data_validation * 10;
+    maxTotal += 10;
+  }
+
+  if (project.data_sources && project.data_sources.length > 1) {
+    scores.multi_source = project.data_sources.length * 20;
+    total += scores.multi_source * 5;
+    maxTotal += 15;
+  }
+
   if (weights.social_score) {
     scores.social_score = project.website ? 50 : 0;
     total += scores.social_score * (weights.social_score / 100);
     maxTotal += weights.social_score;
   }
 
-  // GitHub 活跃度 (需要后续抓取)
   if (weights.github_activity) {
-    scores.github_activity = 50; // 默认中等
+    scores.github_activity = 50;
     total += scores.github_activity * (weights.github_activity / 100);
     maxTotal += weights.github_activity;
   }
 
-  // 团队透明度
   if (weights.team_transparency) {
     scores.team_transparency = 50;
     total += scores.team_transparency * (weights.team_transparency / 100);
     maxTotal += weights.team_transparency;
   }
 
-  // 合作伙伴
   if (weights.partnerships) {
     scores.partnerships = project.tags?.length ? 50 : 30;
     total += scores.partnerships * (weights.partnerships / 100);
     maxTotal += weights.partnerships;
   }
 
-  // 近期里程碑
   if (weights.recent_milestones) {
     scores.recent_milestones = 50;
     total += scores.recent_milestones * (weights.recent_milestones / 100);
     maxTotal += weights.recent_milestones;
   }
 
-  // 官网质量
   if (weights.website_quality) {
     scores.website_quality = project.website ? 60 : 0;
     total += scores.website_quality * (weights.website_quality / 100);
     maxTotal += weights.website_quality;
   }
 
-  // 文档完整性
   if (weights.documentation) {
     scores.documentation = 50;
     total += scores.documentation * (weights.documentation / 100);
     maxTotal += weights.documentation;
   }
 
-  // 归一化到 0-100
   const normalized = maxTotal > 0 ? (total / maxTotal) * 100 : 0;
 
   return {
