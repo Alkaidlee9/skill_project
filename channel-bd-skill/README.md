@@ -1,0 +1,475 @@
+# Channel BD - 加密货币项目渠道拓展自动化
+
+Channel BD 是一个自动化的加密货币项目挖掘、筛选、资料收集和批量联系系统。它从多个数据源获取项目信息，按硬条件和偏好评分筛选，自动收集联系方式，并支持批量邮件发送。
+
+## 快速开始
+
+### 1. 初始化配置
+
+```bash
+# 复制配置模板
+cp config/channel-bd.example.json config/channel-bd.json
+cp config/.env.example config/.env
+
+# 编辑环境变量填入你的 API 密钥
+vim config/.env
+```
+
+### 2. 配置必填项
+
+**编辑 `config/.env`**:
+```bash
+# 数据源 API（至少配置一个）
+export CMC_API_KEY="your_cmc_key"
+export COINGECKO_API_KEY="your_coingecko_key"
+
+# 输出配置（至少配置一个）
+export GOOGLE_SHEET_ID="your_sheet_id"
+export AIRTABLE_BASE_ID="your_base_id"
+
+# 邮件配置
+export SMTP_HOST="smtp.example.com"
+export SMTP_USER="your@email.com"
+export SMTP_PASSWORD="your_password"
+export SMTP_FROM="bd@yourcompany.com"
+```
+
+**编辑 `config/channel-bd.json`**:
+```json
+{
+  "hard_filters": {
+    "min_market_cap": 1000000,    // 最小市值 100 万 USD
+    "max_market_cap": 100000000,  // 最大市值 1 亿 USD
+    "excluded_tags": ["meme", "nft"],
+    "has_website": true,
+    "has_twitter": true
+  },
+  "bucket_thresholds": {
+    "A": 80,   // ≥80 分自动发送
+    "B": 50,   // 50-79 分草稿
+    "C": 0     // <50 分暂缓
+  }
+}
+```
+
+### 3. 运行流程
+
+```bash
+# 方式 1: 完整流程（筛选→抓取→导出→发送）
+node scripts/run.js --config ./config/channel-bd.json
+
+# 方式 2: 分步执行
+node scripts/fetch.js --config ./config/channel-bd.json   # 获取项目池
+node scripts/filter.js --config ./config/channel-bd.json  # 筛选评分
+node scripts/scrape.js --config ./config/channel-bd.json  # 抓取资料
+node scripts/extract.js --config ./config/channel-bd.json # 抽取联系方式
+node scripts/export.js --config ./config/channel-bd.json  # 导出表单
+node scripts/send.js --bucket A --config ./config/channel-bd.json  # 发送邮件
+
+# 方式 3: 仅筛选（不发送，用于测试）
+node scripts/run.js --stage filter --config ./config/channel-bd.json
+```
+
+### 4. 查看结果
+
+```bash
+# 查看分桶统计
+cat cache/buckets.json | jq '. | keys[] as $k | "\($k): \(.[$k] | length)"'
+
+# 查看筛选后项目
+cat cache/filtered.json | jq '.[0:3]'
+
+# 查看被拒绝原因
+cat cache/rejected.json | jq '.[0].reject_reasons'
+```
+
+## 核心功能
+
+| Step | 功能 | 输入 | 输出 |
+|------|------|------|------|
+| 0 | 输入规范化 | 用户需求 | 结构化配置 |
+| 1 | 项目池获取 | CMC/CoinGecko API | projects.json |
+| 2 | 筛选评分分桶 | projects.json | filtered.json, buckets.json |
+| 3 | 资料补全 | filtered.json | scraped.json |
+| 4 | 联系方式抽取 | scraped.json | contacts.json |
+| 5 | 置信度评分 | contacts.json | contacts_scored.json |
+| 6 | 输出表单 | contacts_scored.json | Google Sheets/Airtable |
+| 7 | 邮件生成 | 表单数据 | 邮件草稿 |
+| 8 | 批量发送 | 邮件草稿 | 发送日志 |
+
+## Prompt 规范
+
+### 与 AI Agent 交互的标准格式
+
+当使用 Channel BD Skill 时，请使用以下 Prompt 结构：
+
+#### 1. 任务启动格式
+
+```
+/channel-bd <action> [options]
+
+示例:
+/channel-bd init                          # 初始化配置
+/channel-bd fetch --source cmc --limit 100
+/channel-bd filter --config ./config/channel-bd.json
+/channel-bd run --full                    # 完整流程
+```
+
+#### 2. 配置收集 Prompt
+
+当用户输入模糊需求时，Agent 应主动询问：
+
+```
+请提供以下筛选条件：
+
+【硬条件】（必须满足，否则排除）
+- 市值范围：$___M - $___M
+- 必须有的标签：defi / infrastructure / layer1 / ...
+- 必须排除的标签：meme / nft / ...
+- 最小上线天数：___天
+- 必须有官网/推特/TG：是/否
+
+【评分偏好】（影响排序，非硬性）
+- 最看重的因素：市值排名 / 社媒活跃 / GitHub 活跃 / 团队透明度 / 合作伙伴
+- 目标桶位：只要 A 桶 / A+B 桶 / 全部
+
+【输出配置】
+- 输出目标：Google Sheets / Airtable / CSV
+- 是否发送邮件：是（A 桶/B 桶） / 否（仅导出）
+```
+
+#### 3. 配置结构化输出
+
+Agent 应将用户回答转换为 JSON 配置：
+
+```json
+{
+  "action": "filter",
+  "hard_filters": {
+    "min_market_cap": 1000000,
+    "max_market_cap": 100000000,
+    "required_tags": ["defi"],
+    "excluded_tags": ["meme", "nft"],
+    "min_age_days": 30,
+    "has_website": true,
+    "has_twitter": true
+  },
+  "scoring_weights": {
+    "market_cap_rank": 25,
+    "social_score": 20,
+    "github_activity": 15,
+    "team_transparency": 15,
+    "partnerships": 15,
+    "documentation": 10
+  },
+  "bucket_thresholds": {
+    "A": 80,
+    "B": 50,
+    "C": 0
+  },
+  "output": {
+    "primary": "google_sheets",
+    "send_email": true,
+    "email_bucket": "A"
+  }
+}
+```
+
+#### 4. 执行确认 Prompt
+
+在执行关键操作前，Agent 应确认：
+
+```
+【执行确认】
+
+将执行以下操作：
+1. 从 CMC 获取 100 个项目
+2. 按硬条件过滤（预计保留 60-70 个）
+3. 评分分桶（预计 A 桶 15 个，B 桶 25 个，C 桶 20 个）
+4. 导出到 Google Sheets
+5. 向 A 桶项目发送邮件（共 15 封）
+
+⚠️  当前为干跑模式 (DRY_RUN=true)，不会实际发送邮件
+
+是否继续？ [Y/n]
+```
+
+#### 5. 结果汇报 Prompt
+
+执行完成后，Agent 应输出结构化结果：
+
+```
+✅ Channel BD 执行完成
+
+【统计摘要】
+┌─────────────┬────────┐
+│ 阶段        │ 数量   │
+├─────────────┼────────┤
+│ 获取项目    │ 100    │
+│ 通过筛选    │ 62     │
+│ A 桶 (优先)  │ 15     │
+│ B 桶 (草稿)  │ 27     │
+│ C 桶 (暂缓)  │ 20     │
+│ 被拒绝      │ 38     │
+└─────────────┴────────┘
+
+【A 桶前 5 名】
+1. Arbitrum (ARB) - 89 分 - $1.2B
+2. Optimism (OP) - 87 分 - $980M
+3. Polygon (MATIC) - 85 分 - $850M
+4. Avalanche (AVAX) - 83 分 - $720M
+5. Cosmos (ATOM) - 81 分 - $650M
+
+【输出位置】
+- Google Sheets: https://docs.google.com/spreadsheets/d/xxx
+- 邮件发送：15 封已发送（A 桶）
+- 日志文件：logs/channel-bd.log
+
+【下一步建议】
+- 复核 B 桶项目：node scripts/export.js --bucket B --review
+- 发送 B 桶邮件：node scripts/send.js --bucket B --confirm
+```
+
+#### 6. 错误处理 Prompt
+
+```
+❌ 执行出错
+
+【错误信息】
+CMC API 请求失败：429 Too Many Requests
+
+【可能原因】
+API 限流 - 每分钟请求数超限
+
+【解决方案】
+1. 等待 60 秒后重试
+2. 减少 --limit 参数
+3. 使用缓存：node scripts/fetch.js --use-cache
+
+【已完成的进度】
+✓ 初始化配置
+✗ 获取项目池 (失败)
+- 筛选评分 (未执行)
+- 导出表单 (未执行)
+```
+
+### Agent 行为规范
+
+| 场景 | 行为要求 |
+|------|---------|
+| 配置缺失 | 主动询问，提供默认值建议 |
+| 模糊需求 | 拆解为硬条件 + 评分偏好 |
+| 执行前 | 必须确认，显示预估结果 |
+| 执行后 | 输出统计摘要 + 下一步建议 |
+| 出错时 | 解释原因 + 提供解决方案 |
+| 个性化邮件 | 仅使用有证据字段，缺证据不写 |
+| 联系人信息 | 标注置信度，低置信度标记待复核 |
+
+### 邮件生成 Prompt 模板
+
+```
+请为以下项目生成 BD 邮件：
+
+项目：{{project.name}} ({{project.symbol}})
+联系人：{{contact.name}} - {{contact.role}} (置信度：{{contact.confidence}})
+桶位：{{project.bucket}}
+
+可用个性化字段（必须有证据）：
+- 近期里程碑：{{project.milestones}}
+- 合作伙伴：{{project.partnerships}}
+- 项目标签：{{project.tags}}
+- Twitter: {{project.twitter_url}}
+
+要求：
+1. 仅使用上述有证据字段
+2. 如果字段为空，跳过个性化内容
+3. 语气专业但友好
+4. 长度 100-150 字
+```
+
+## 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `node scripts/init.js` | 初始化配置 |
+| `node scripts/run.js --full` | 运行完整流程 |
+| `node scripts/fetch.js --source cmc` | 从 CMC 获取 |
+| `node scripts/filter.js` | 筛选评分分桶 |
+| `node scripts/scrape.js` | 抓取官网社媒 |
+| `node scripts/extract.js` | 抽取联系方式 |
+| `node scripts/export.js` | 导出表单 |
+| `node scripts/send.js --bucket A` | 发送 A 桶邮件 |
+| `node scripts/send.js --dry-run` | 干跑测试 |
+
+## 配置项详解
+
+### 硬条件筛选 (hard_filters)
+
+```json
+{
+  "min_market_cap": 1000000,      // 最小市值 (USD)
+  "max_market_cap": 100000000,    // 最大市值 (USD)
+  "min_fdv": 5000000,             // 最小 FDV (USD)
+  "max_fdv": 500000000,           // 最大 FDV (USD)
+  "required_tags": ["defi"],      // 必须包含的标签
+  "excluded_tags": ["meme", "nft"], // 必须排除的标签
+  "min_age_days": 30,             // 最小上线天数
+  "has_website": true,            // 必须有官网
+  "has_twitter": true,            // 必须有 Twitter
+  "has_telegram": false,          // 必须有 Telegram
+  "has_docs": false,              // 必须有文档
+  "min_twitter_followers": 1000,  // 最小推特粉丝
+  "min_github_stars": 50,         // 最小 GitHub stars
+  "countries_excluded": []        // 排除的国家
+}
+```
+
+### 评分权重 (scoring_weights)
+
+```json
+{
+  "market_cap_rank": 20,      // 市值排名分
+  "social_score": 15,         // 社交媒体活跃度
+  "github_activity": 15,      // GitHub 活跃度
+  "team_transparency": 10,    // 团队透明度
+  "partnerships": 10,         // 合作伙伴质量
+  "recent_milestones": 10,    // 近期里程碑
+  "website_quality": 10,      // 官网质量
+  "documentation": 10,        // 文档完整性
+  "community_engagement": 5,  // 社区互动
+  "tokenomics": 5             // 代币经济学
+}
+```
+
+## 邮件模板
+
+### A 桶模板（高优先级）
+
+编辑 `templates/email_a.md`:
+```markdown
+Subject: 合作伙伴机会 - {{ProjectName}}
+
+Hi {{Name}},
+
+我是{{SenderName}}，{{CompanyName}}的{{SenderRole}}。
+{{Personalized}}
+
+期待合作！
+```
+
+### B 桶模板（一般优先级）
+
+编辑 `templates/email_b.md`:
+```markdown
+Subject: 关于{{ProjectName}}的合作咨询
+
+Hi {{Name}},
+
+{{Personalized}}
+
+请问您是对接商务合作的负责人吗？
+```
+
+## 抑制名单管理
+
+编辑 `config/suppression.txt`:
+```
+# 不再联系的邮箱
+unsubscribe@example.com
+@competitor-domain.com
+
+# 已联系过去重
+already-contacted@project.io
+```
+
+## 环境变量快捷开关
+
+```bash
+# 干跑模式（不实际发送）
+export CHANNEL_BD_DRY_RUN="true"
+
+# 调整日志级别
+export CHANNEL_BD_LOG_LEVEL="debug"
+
+# 指定配置文件
+export CHANNEL_BD_CONFIG_PATH="./config/channel-bd.json"
+```
+
+## 典型工作流
+
+```bash
+# 第 1 天：获取并筛选项目
+node scripts/fetch.js --config ./config/channel-bd.json
+node scripts/filter.js --config ./config/channel-bd.json
+
+# 第 2 天：抓取资料并导出
+node scripts/scrape.js --config ./config/channel-bd.json
+node scripts/extract.js --config ./config/channel-bd.json
+node scripts/export.js --config ./config/channel-bd.json
+
+# 第 3 天：人工复核 B 桶，然后发送 A 桶
+node scripts/send.js --bucket A --config ./config/channel-bd.json
+
+# 后续：发送 B 桶（人工确认后）
+node scripts/send.js --bucket B --confirm --config ./config/channel-bd.json
+```
+
+## 分桶逻辑
+
+| 桶 | 分数范围 | 处理方式 |
+|----|---------|---------|
+| A | ≥80 分 | 自动发送，优先联系 |
+| B | 50-79 分 | 生成草稿，人工确认 |
+| C | <50 分 | 暂缓，放入观察池 |
+
+## 置信度评分（TG 联系人）
+
+| 等级 | 说明 | 处理方式 |
+|------|------|---------|
+| HIGH | 官网明确 + 多来源一致 | 自动填充 |
+| MEDIUM | 单一可靠来源 | 标记待复核 |
+| LOW | 推测/不确定 | 标记 Needs review |
+
+## 注意事项
+
+1. **首次运行**建议用 `--dry-run` 测试
+2. **新域名**需要暖发，先从每天 20 封开始
+3. **频控设置**遵守邮件服务商限制
+4. **定期清理**缓存目录 `./cache`
+5. **退订请求**及时加入抑制名单
+
+## 故障排除
+
+| 问题 | 可能原因 | 解决方案 |
+|------|---------|---------|
+| API 限流 | 请求过于频繁 | 降低 limit，增加缓存 |
+| 邮件发送失败 | 认证错误 | 检查 SMTP 凭证 |
+| 网页抓取失败 | 反爬机制 | 使用官方 API 或降低频率 |
+| 数据不一致 | 多数据源冲突 | 配置优先级，手动复核 |
+
+## 目录结构
+
+```
+channel-bd-skill/
+├── SKILL.md                    # 完整技能文档
+├── README.md                   # 使用说明（本文件）
+├── config/
+│   ├── channel-bd.example.json # 配置模板
+│   ├── schema.json             # JSON Schema 验证
+│   ├── suppression.example.txt # 退订名单模板
+│   └── .env.example            # 环境变量模板
+├── templates/
+│   ├── email_a.md              # A 桶邮件模板
+│   └── email_b.md              # B 桶邮件模板
+└── scripts/
+    ├── init.js                 # 初始化
+    ├── fetch.js                # 获取项目池
+    ├── filter.js               # 筛选评分
+    ├── run.js                  # 批量运行
+    ├── send.js                 # 发送邮件
+    └── README.md               # 脚本说明
+```
+
+## License
+
+MIT

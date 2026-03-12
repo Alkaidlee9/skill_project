@@ -1,0 +1,123 @@
+{
+  "$schema": "./schema.json",
+  "data_sources": {
+    "cmc": {
+      "enabled": true,
+      "api_key": "${CMC_API_KEY}",
+      "limit": 100,
+      "category": "defi",
+      "sort": "market_cap",
+      "direction": "desc"
+    },
+    "coingecko": {
+      "enabled": true,
+      "api_key": "${COINGECKO_API_KEY}",
+      "vs_currency": "usd",
+      "order": "market_cap_desc",
+      "per_page": 100
+    }
+  },
+  "hard_filters": {
+    "min_market_cap": 1000000,
+    "max_market_cap": 100000000,
+    "min_fdv": 5000000,
+    "max_fdv": 500000000,
+    "required_tags": [],
+    "excluded_tags": ["meme", "nft"],
+    "min_age_days": 30,
+    "max_age_days": null,
+    "has_website": true,
+    "has_twitter": true,
+    "has_telegram": false,
+    "has_docs": false,
+    "min_twitter_followers": 1000,
+    "max_twitter_followers": null,
+    "min_github_stars": 50,
+    "countries_excluded": []
+  },
+  "scoring_weights": {
+    "market_cap_rank": 20,
+    "social_score": 15,
+    "github_activity": 15,
+    "team_transparency": 10,
+    "partnerships": 10,
+    "recent_milestones": 10,
+    "website_quality": 10,
+    "documentation": 10,
+    "community_engagement": 5,
+    "tokenomics": 5
+  },
+  "bucket_thresholds": {
+    "A": 80,
+    "B": 50,
+    "C": 0
+  },
+  "output": {
+    "primary": "google_sheets",
+    "backup": "csv",
+    "google_sheets": {
+      "spreadsheet_id": "${GOOGLE_SHEET_ID}",
+      "projects_sheet": "Projects",
+      "contacts_sheet": "Contacts",
+      "service_account_key": "${GOOGLE_SERVICE_ACCOUNT_KEY}"
+    },
+    "airtable": {
+      "base_id": "${AIRTABLE_BASE_ID}",
+      "api_key": "${AIRTABLE_API_KEY}",
+      "projects_table": "Projects",
+      "contacts_table": "Contacts"
+    },
+    "csv": {
+      "projects_file": "./output/projects.csv",
+      "contacts_file": "./output/contacts.csv"
+    }
+  },
+  "email": {
+    "provider": "smtp",
+    "dry_run": true,
+    "smtp": {
+      "host": "${SMTP_HOST}",
+      "port": 587,
+      "secure": false,
+      "user": "${SMTP_USER}",
+      "password": "${SMTP_PASSWORD}",
+      "from": "${SMTP_FROM}",
+      "from_name": "Partnerships Team"
+    },
+    "rate_limit": {
+      "per_hour": 50,
+      "per_day": 200,
+      "per_domain": 10
+    },
+    "retry": {
+      "max_attempts": 3,
+      "backoff_ms": 5000
+    },
+    "templates": {
+      "A_bucket": "./templates/email_a.md",
+      "B_bucket": "./templates/email_b.md"
+    },
+    "personalization": {
+      "enabled": true,
+      "max_sentences": 2,
+      "require_evidence": true
+    }
+  },
+  "suppression_list": "./config/suppression.txt",
+  "logs": {
+    "file": "./logs/channel-bd.log",
+    "level": "info",
+    "rotation": "daily",
+    "retention_days": 30
+  },
+  "cache": {
+    "enabled": true,
+    "dir": "./cache",
+    "ttl_hours": 24
+  },
+  "browser": {
+    "headless": true,
+    "timeout_ms": 30000,
+    "user_agent": "Mozilla/5.0 (compatible; Channel-BD/1.0)"
+  }
+}

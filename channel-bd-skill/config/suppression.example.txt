@@ -1,0 +1,8 @@
+# Suppression List - Email addresses and domains to exclude
+# One entry per line
+# Format: email@domain.com or @domain.com for domain-wide suppression
+
+# Example:
+# unsubscribe@example.com
+# @spam-domain.com
+# bounced@example.org

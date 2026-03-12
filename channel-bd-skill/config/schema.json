@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Channel BD Configuration Schema",
+  "type": "object",
+  "required": ["data_sources", "hard_filters", "scoring_weights", "bucket_thresholds", "output"],
+  "properties": {
+    "data_sources": {
+      "type": "object",
+      "properties": {
+        "cmc": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "api_key": { "type": "string" },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 5000 },
+            "category": { "type": "string" }
+          }
+        },
+        "coingecko": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "api_key": { "type": "string" },
+            "vs_currency": { "type": "string" },
+            "per_page": { "type": "integer", "minimum": 1, "maximum": 250 }
+          }
+        }
+      }
+    },
+    "hard_filters": {
+      "type": "object",
+      "properties": {
+        "min_market_cap": { "type": "number", "minimum": 0 },
+        "max_market_cap": { "type": "number", "minimum": 0 },
+        "min_fdv": { "type": "number", "minimum": 0 },
+        "max_fdv": { "type": "number", "minimum": 0 },
+        "required_tags": { "type": "array", "items": { "type": "string" } },
+        "excluded_tags": { "type": "array", "items": { "type": "string" } },
+        "min_age_days": { "type": "integer", "minimum": 0 },
+        "max_age_days": { "type": ["integer", "null"], "minimum": 0 },
+        "has_website": { "type": "boolean" },
+        "has_twitter": { "type": "boolean" },
+        "has_telegram": { "type": "boolean" },
+        "has_docs": { "type": "boolean" },
+        "min_twitter_followers": { "type": ["integer", "null"], "minimum": 0 },
+        "max_twitter_followers": { "type": ["integer", "null"], "minimum": 0 },
+        "min_github_stars": { "type": ["integer", "null"], "minimum": 0 },
+        "countries_excluded": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "scoring_weights": {
+      "type": "object",
+      "properties": {
+        "market_cap_rank": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "social_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "github_activity": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "team_transparency": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "partnerships": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "recent_milestones": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "website_quality": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "documentation": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "community_engagement": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "tokenomics": { "type": "integer", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "bucket_thresholds": {
+      "type": "object",
+      "required": ["A", "B", "C"],
+      "properties": {
+        "A": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "B": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "C": { "type": "integer", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["primary"],
+      "properties": {
+        "primary": { "type": "string", "enum": ["google_sheets", "airtable", "csv"] },
+        "backup": { "type": "string", "enum": ["google_sheets", "airtable", "csv"] }
+      }
+    },
+    "email": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string", "enum": ["smtp", "gmail", "outlook"] },
+        "dry_run": { "type": "boolean" },
+        "rate_limit": {
+          "type": "object",
+          "properties": {
+            "per_hour": { "type": "integer", "minimum": 1 },
+            "per_day": { "type": "integer", "minimum": 1 },
+            "per_domain": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    }
+  }
+}

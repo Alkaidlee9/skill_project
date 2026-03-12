@@ -1,0 +1,9 @@
+node_modules/
+cache/
+logs/
+output/
+*.log
+.DS_Store
+.env
+config/*.json
+!config/schema.json
