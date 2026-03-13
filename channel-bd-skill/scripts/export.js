@@ -120,7 +120,7 @@ async function exportToAirtable(projects, contacts, config) {
   return baseId;
 }
 
-async function export(config) {
+async function exportData(config) {
   const filteredPath = path.join(process.cwd(), 'cache', 'filtered.json');
   const contactsPath = path.join(process.cwd(), 'cache', 'contacts.json');
 
@@ -190,7 +190,7 @@ async function main() {
   loadEnvFile();
 
   const startTime = Date.now();
-  const { projects, contacts } = await export(config);
+  const { projects, contacts } = await exportData(config);
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
   
   printStats(projects, contacts);
