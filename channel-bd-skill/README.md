@@ -63,7 +63,8 @@ cat cache/buckets.json | jq '. | keys[] as $k | "\($k): \(.[$k] | length)"'
 - 📘 **[SKILL.md](./SKILL.md)** - 完整技能文档（技术规范）
 - 📗 **[GUIDE.md](./GUIDE.md)** - 详细使用指南（工作流示例）
 - 📙 **[QUICKREF.md](./QUICKREF.md)** - 快速参考卡（命令速查）
-- 📕 **[config/README.md](./config/README.md)** - 配置说明
+- 📕 **[USAGE.md](./USAGE.md)** - **使用说明（新手必读）**
+- 📔 **[config/README.md](./config/README.md)** - 配置说明
 
 ## 核心功能
 
